@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api\v1;
 
+use App\Http\Requests\Auth\LoginUserRequest;
+use App\Http\Requests\Auth\RegisterUserRequest;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use App\Models\User;
 use App\Http\Controllers\Controller;
 use Exception;
 use App\Services\AuthService;
@@ -22,18 +22,20 @@ class AuthController extends Controller
     {
         return "auth route";
     }
-    public function login(Request $request)
+
+    /**
+     * Login method for user
+     * @param \App\Http\Requests\Auth\LoginUserRequest $request
+     */
+    public function login(LoginUserRequest $request)
     {
         try {
-            $validatedData = $request->validate([
-                "email" => "required|string",
-                "password" => "required|string"
-            ]);
+            $requestBody = $request->json()->all();
 
-            if ($this->authService->attempt($validatedData)) {
-                $existingUser = Auth::user();
+            if ($this->authService->attempt($requestBody)) {
+                $existingUser = $this->authService->user();
 
-                $token = $existingUser->createToken("access-token")->accessToken;
+                $token = $this->authService->createToken();
 
                 $data = [
                     "message" => "User logged in",
@@ -52,15 +54,15 @@ class AuthController extends Controller
         }
     }
 
-    public function register(Request $request)
+    /**
+     * Register method for user
+     * @param \App\Http\Requests\Auth\RegisterUserRequest $request
+     */
+    public function register(RegisterUserRequest $request)
     {
-        $validatedData = $request->validate([
-            'email' => 'required|string',
-            'username' => 'required|string',
-            'password' => 'required|string',
-        ]);
+        $requestData = $request->json()->all();
 
-        $user = User::create($validatedData);
+        $user = $this->authService->register($requestData);
 
         $token = $user->createToken('access-token')->accessToken;
 
@@ -69,6 +71,9 @@ class AuthController extends Controller
         return response()->json($data, 201);
     }
 
+    /**
+     * Logout method for user
+     */
     public function logout()
     {
         $this->authService->revokeToken();
@@ -76,9 +81,13 @@ class AuthController extends Controller
         return response()->json(["message" => "User logged out"], 200);
     }
 
+    /**
+     * Refreshes the token of the user
+     * @param \Illuminate\Http\Request $request
+     */
     public function refreshToken(Request $request)
     {
-        $user = Auth::user();
+        $user = $this->authService->user();
 
         $token = $user->createToken("access-token")->accessToken;
 
@@ -87,9 +96,12 @@ class AuthController extends Controller
         return response()->json($data, 200);
     }
 
+    /**
+     * Fetch the user data of the current logged in user
+     */
     public function currentUser()
     {
-        $user = Auth::user();
+        $user = $this->authService->user();
 
         if (!$user) {
             return response()->json(["message" => "User not found"], 404);

@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers\Api\v1;
 
+use App\Http\Requests\Todo\CreateTodoRequest;
+use App\Http\Requests\Todo\UpdateTodoRequest;
 use App\Models\Todo;
-use App\Models\User;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Services\TodoService;
@@ -29,16 +30,13 @@ class TodoController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(CreateTodoRequest $request)
     {
-        $validatedData = $request->validate([
-            "user_id" => "required|numeric",
-            "content" => "required|string",
-        ]);
+        $requestData = $request->json()->all();
 
-        $todo = $this->todoService->create($validatedData);
+        $todo = $this->todoService->create($requestData);
 
-        $data = ['message' => 'Todo created', 'data' => $todo, 'requestData' => $request];
+        $data = ['message' => 'Todo created', 'data' => $todo];
 
         return response()->json($data, 200);
     }
@@ -62,7 +60,7 @@ class TodoController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(UpdateTodoRequest $request, string $id)
     {
         $todo = $this->todoService->findById($id);
 
@@ -70,12 +68,9 @@ class TodoController extends Controller
             return response()->json(['message' => 'Todo not found'], 404);
         }
 
-        $validatedData = $request->validate([
-            'content' => 'string',
-        ]);
+        $requestData = $request->json()->all();
 
-        // $todo->update($validatedData);
-        $todo = $this->todoService->update($todo->id, $validatedData, );
+        $todo = $this->todoService->update($todo->id, $requestData);
 
         $data = ['message' => 'Todo updated', 'data' => $todo];
 
