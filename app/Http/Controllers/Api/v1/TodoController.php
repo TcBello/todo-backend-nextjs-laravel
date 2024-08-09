@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api\v1;
 use App\Http\Requests\Todo\CreateTodoRequest;
 use App\Http\Requests\Todo\UpdateTodoRequest;
 use App\Models\Todo;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Services\TodoService;
+use Exception;
 
 class TodoController extends Controller
 {
@@ -20,83 +22,147 @@ class TodoController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(): JsonResponse
     {
-        $todos = Todo::all();
+        try {
+            $todos = $this->todoService->findAll();
 
-        return response()->json($todos);
+            $data = [
+                "message" => "Successfuly fetched",
+                "status" => "ok",
+                "data"=> $todos
+            ];
+
+            return response()->json($data, 200);
+        } catch (Exception $e) {
+            return response()->json([
+                "status"=> "error",
+                "message"=> $e->getMessage()
+            ],500);
+        }
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(CreateTodoRequest $request)
+    public function store(CreateTodoRequest $request): JsonResponse
     {
-        $requestData = $request->json()->all();
+        try {
+            $requestData = $request->json()->all();
 
-        $todo = $this->todoService->create($requestData);
+            $todo = $this->todoService->create($requestData);
 
-        $data = ['message' => 'Todo created', 'data' => $todo];
+            if (!$todo) {
+                $data = ['message' => 'Creation failed', 'status' => 'error'];
 
-        return response()->json($data, 200);
+                return response()->json($data, 400);
+            }
+
+            $data = ['message' => 'Todo created', 'status' => 'ok', 'data' => $todo];
+
+            return response()->json($data, 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'status'=> 'error',
+                'message'=> $e->getMessage()
+            ],500);
+        }
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(string $id): JsonResponse
     {
-        $todo = $this->todoService->findById($id);
+        try {
+            $todo = $this->todoService->findById($id);
 
-        if (!$todo) {
-            return response()->json(['message' => 'Todo not found'], 404);
+            if (!$todo) {
+                return response()->json(['message' => 'Todo not found', 'status' => 'error'], 404);
+            }
+
+            $data = ['message' => 'Todo found', 'status' => 'ok', 'data' => $todo];
+
+            return response()->json($data, 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'status'=> 'error',
+                'message'=> $e->getMessage()
+            ], 500);
         }
-
-        $data = ['message' => 'Todo found', 'data' => $todo];
-
-        return response()->json($data, 200);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateTodoRequest $request, string $id)
+    public function update(UpdateTodoRequest $request, string $id): JsonResponse
     {
-        $todo = $this->todoService->findById($id);
+        try {
+            $todo = $this->todoService->findById($id);
 
-        if (!$todo) {
-            return response()->json(['message' => 'Todo not found'], 404);
+            if (!$todo) {
+                return response()->json(['message' => 'Todo not found', 'status' => 'error'], 404);
+            }
+
+            $requestData = $request->json()->all();
+
+            $todo = $this->todoService->update($todo->id, $requestData);
+
+            $data = ['message' => 'Todo updated', 'status' => 'ok', 'data' => $todo];
+
+            return response()->json($data, 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'status'=> 'error',
+                'message'=> $e->getMessage()
+            ]. 500);
         }
-
-        $requestData = $request->json()->all();
-
-        $todo = $this->todoService->update($todo->id, $requestData);
-
-        $data = ['message' => 'Todo updated', 'data' => $todo];
-
-        return response()->json($data, 200);
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(string $id): JsonResponse
     {
-        $todo = $this->todoService->findById($id);
+        try {
+            $todo = $this->todoService->findById($id);
 
-        if (!$todo) {
-            return response()->json(['message' => 'Todo not found'], 404);
+            if (!$todo) {
+                return response()->json(['message' => 'Todo not found', 'status' => 'error'], 404);
+            }
+
+            $isDeleted = $this->todoService->delete($todo->id);
+
+            if (!$isDeleted) {
+                return response()->json(['message' => 'Deletion failed', 'status' => "error"], 400);
+            }
+
+            return response()->json(['message' => 'Todo deleted', 'status' => 'ok',], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'status'=> 'error',
+                'message'=> $e->getMessage()
+            ],500);
         }
-
-        $this->todoService->delete($todo->id);
-
-        return response()->json(['message' => 'Todo deleted'], 200);
     }
 
-    public function fetchTodosByUserId(string $id)
+    public function fetchTodosByUserId(string $id): JsonResponse
     {
-        $todos = $this->todoService->findAllByUserId($id);
+        try {
+            $todos = $this->todoService->findAllByUserId($id);
 
-        return response()->json($todos, 200);
+            if ($todos == null) {
+                return response()->json(['message' => 'Failed fetch data', 'status' => 'error'], 400);
+            }
+
+            $data = ['message' => "Todos found", "status" => "ok", "data" => $todos];
+
+            return response()->json($data, 200);
+        } catch (Exception $e) {
+            return response()->json([
+                "status"=> "error",
+                "message"=> $e->getMessage()
+            ],500);
+        }
     }
 }
